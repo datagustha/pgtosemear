@@ -1,31 +1,19 @@
-# importações
-import locale
 import os
 import shutil
 import time
-from calendar import month
-from datetime import datetime
-from locale import setlocale
+from datetime import datetime, timedelta
 from os import listdir
 from os.path import exists
 
-
-from babel.dates import format_date
-from datetime import date
-
-
-
+import pandas as pd
+import numpy as np
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import mysql.connector
 
-# brasil
-
-
-
-# Dicionário para os meses
+# Dicionário meses abreviados para nome completo
 meses_dict = {
     'jan': 'janeiro',
     'fev': 'fevereiro',
@@ -41,159 +29,122 @@ meses_dict = {
     'dez': 'dezembro'
 }
 
-# Verificando as datas
+# Data atual e variáveis para filtros
 data = datetime.now()
-mesabrev = data.strftime("%b")  # Mês abreviado
-mescompleto = meses_dict.get(mesabrev.lower(), mesabrev)  # Pegando o mês completo usando o dicionário
+mesabrev = data.strftime("%b").lower()
+mescompleto = meses_dict.get(mesabrev, mesabrev)
 mesnum = data.month
 anoatual = data.year
 
-
-# Agora mescompleto contém o nome completo do mês com base no dicionário
 print(f'Mês abreviado: {mesabrev}')
 print(f'Mês completo: {mescompleto}')
 print(f'Ano atual: {anoatual}')
 
+# --- Abrir navegador e fazer login ---
 
-# ecolher o navegador
 navegador = webdriver.Chrome()
-
-# link do site
 navegador.get('https://login.cobmais.com.br/')
-
-# expandir tela
 navegador.maximize_window()
 
-# esperar a tela aparecer e enviar login
-login = WebDriverWait(navegador,10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="Username"]')))
+login = WebDriverWait(navegador, 10).until(EC.presence_of_element_located((By.ID, 'Username')))
 login.send_keys('2552GUSTHAVO')
 
-# enviar senha
-senha = navegador.find_element(By.XPATH, '//*[@id="Password"]')
+senha = navegador.find_element(By.ID, 'Password')
 senha.send_keys('123456789')
 
+navegador.find_element(By.ID, 'Login').click()
 
-#fazer login
-navegador.find_element(By.XPATH, '//*[@id="Login"]').click()
-
-# FECHAR PRIMEIRO POP UP
-popup1 = WebDriverWait(navegador, 40).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="pushActionRefuse" and contains(text(), "Não, obrigado")]')))
+# Fechar popup que aparece após login
+popup1 = WebDriverWait(navegador, 40).until(
+    EC.element_to_be_clickable((By.XPATH, '//*[@id="pushActionRefuse" and contains(text(), "Não, obrigado")]'))
+)
 popup1.click()
 
-# menu de opcoes
-WebDriverWait(navegador, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="menusuperior"]/a'))).click()
-WebDriverWait(navegador, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="lkbRelatorios"]/span[1]/i/img'))).click() # relatorios
-WebDriverWait(navegador, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="CobmaisSideBar"]/nav/ul/li[3]/a/i'))).click() # financeiro
-WebDriverWait(navegador, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="CobmaisSideBar"]/nav/ul/li[3]/ul/li[6]/a/span'))).click() # pagamentos
+# --- Navegação no menu para o relatório ---
 
-# analitico
-WebDriverWait(navegador, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="divTipoRel"]/div/div/div[1]/label'))).click()
+WebDriverWait(navegador, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="menusuperior"]/a'))).click()
+WebDriverWait(navegador, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="lkbRelatorios"]/span[1]/i/img'))).click()
+WebDriverWait(navegador, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="CobmaisSideBar"]/nav/ul/li[3]/a/i'))).click()
+WebDriverWait(navegador, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="CobmaisSideBar"]/nav/ul/li[3]/ul/li[6]/a/span'))).click()
 
-# abrir escolher credor
+# Selecionar tipo analítico
+WebDriverWait(navegador, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="divTipoRel"]/div/div/div[1]/label'))).click()
+
+# Selecionar credor SEMEAR (deselecionar todos e marcar SEMEAR)
+navegador.find_element(By.XPATH, '//*[@id="divStatus"]/div/div[2]/button').click()
+navegador.find_element(By.XPATH, '//*[@id="divStatus"]/div/div[2]/ul/li[2]/a/label').click()  # desmarcar todos
+navegador.find_element(By.XPATH, '//*[@id="divStatus"]/div/div[2]/ul/li[8]/a/label').click()  # SEMEAR
 navegador.find_element(By.XPATH, '//*[@id="divStatus"]/div/div[2]/button').click()
 
-# desmarcar todos
-navegador.find_element(By.XPATH, '//*[@id="divStatus"]/div/div[2]/ul/li[2]/a/label').click()
-
-# credor 'SEMEAR'💙💙💙💙💙💙💙💙💙💙💙💙
-navegador.find_element(By.XPATH, '//*[@id="divStatus"]/div/div[2]/ul/li[8]/a/label').click()
-
-# fechar credor
-navegador.find_element(By.XPATH, '//*[@id="divStatus"]/div/div[2]/button').click()
-
-# abrir menu
-navegador.find_element(By.XPATH, '//*[@id="selTipoFinalizacao"]').click()
-
-
-#escolher opcao pgto
+# Selecionar tipo finalização
+navegador.find_element(By.ID, 'selTipoFinalizacao').click()
 navegador.find_element(By.XPATH, '//*[@id="selTipoFinalizacao"]/option[4]').click()
 
-# abrir calendário
-navegador.find_element(By.XPATH, '//*[@id="dtInicial"]').click()
+# --- Selecionar datas no calendário ---
 
-# verificar mes
-# Encontrar o mês e o ano exibido no calendário
+# Data inicial
+navegador.find_element(By.ID, 'dtInicial').click()
 mes_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-month').text.strip().lower()
 ano_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-year').text
-print(f'📅 O mês no COB é {mes_x} e o ano é {ano_x}')
-print(f'📅 O mês ATUAL é {mescompleto} e o ano é {anoatual}')
 
+print(f'📅 Mês no COB: {mes_x}, Ano no COB: {ano_x}')
+print(f'📅 Mês atual: {mescompleto}, Ano atual: {anoatual}')
 
-# Para primeira data
-while True:
-    if mescompleto.lower() == mes_x and anoatual == int(ano_x):
-        print(f'📅 O mês INICIAL no COB é {mes_x} igual ao mês atual {mescompleto} e o ano INICIAL no COB é {ano_x} igual ao ano atual {anoatual}')
-        break
-    seta = navegador.find_element(By.XPATH, '//*[@id="ui-datepicker-div"]/div/a[2]/span').click()
+# Navega até o mês e ano corretos para a data inicial
+while mescompleto.lower() != mes_x or anoatual != int(ano_x):
+    navegador.find_element(By.XPATH, '//*[@id="ui-datepicker-div"]/div/a[2]/span').click()
     mes_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-month').text.strip().lower()
     ano_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-year').text
-    print(f'📅 O NOVO mês no COB é {mes_x} e o NOVO ano é {ano_x}')
+    print(f'📅 Novo mês no COB: {mes_x}, Novo ano: {ano_x}')
 
-# pegar o primeiro dia
-navegador.find_element(By.XPATH,'//*[@id="ui-datepicker-div"]//a[text()="1"]').click()
+navegador.find_element(By.XPATH, '//*[@id="ui-datepicker-div"]//a[text()="1"]').click()
 
-if data.weekday() in [0, 1]:  # Segunda ou Terça
+# Ajuste de data inicial conforme dia da semana
+if data.weekday() in [0, 1]:  # segunda ou terça
     dias_retroceder = 4
 else:
     dias_retroceder = 2
 
-from datetime import timedelta
-
-
 data_corrigida = data - timedelta(days=dias_retroceder)
 diaatual = data_corrigida.day
 
-
-
 # Data final
-navegador.find_element(By.XPATH, '//*[@id="dtFinal"]').click()
-
+navegador.find_element(By.ID, 'dtFinal').click()
 mes_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-month').text.strip().lower()
 ano_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-year').text
 
-# Para a segunda data
-while True:
-    if mescompleto.lower() == mes_x and anoatual == int(ano_x):
-        print(f'📅 O mês FINAL no COB é {mes_x} igual ao mês atual {mescompleto} e o ano FINAL no COB é {ano_x} igual ao ano atual {anoatual}')
-        break
-    seta = navegador.find_element(By.XPATH, '//*[@id="ui-datepicker-div"]/div/a[2]/span').click()
+while mescompleto.lower() != mes_x or anoatual != int(ano_x):
+    navegador.find_element(By.XPATH, '//*[@id="ui-datepicker-div"]/div/a[2]/span').click()
     mes_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-month').text.strip().lower()
     ano_x = navegador.find_element(By.CLASS_NAME, 'ui-datepicker-year').text
-    print(f'📅 O NOVO mês no COB é {mes_x} e o NOVO ano é {ano_x}')
+    print(f'📅 Novo mês no COB: {mes_x}, Novo ano: {ano_x}')
 
+# Seleciona maior dia do mês
 dias_elementos = navegador.find_elements(By.XPATH, '//*[@id="ui-datepicker-div"]//a[contains(@class,"ui-state-default")]')
 datas = [int(dia.text.strip()) for dia in dias_elementos if dia.text.strip().isdigit()]
-
 maiordata = max(datas)
-print(f' A maior data encontrada foi: {maiordata}')
+print(f'Maior data encontrada: {maiordata}')
 
 for dia in dias_elementos:
     if dia.text.strip() == str(maiordata):
         dia.click()
+        break
 
-# Botão para abrir opções de download
-opcoesdowload = navegador.find_element('xpath', '//*[@id="btnGerarOpcoes"]/i').click()
+# --- Baixar arquivo ---
 
-# Baixar o relatório de acordos
-baixar = navegador.find_element('xpath', '//*[@id="frmRelatorio"]/div[2]/div/ul/li[1]/a').click()
+navegador.find_element(By.XPATH, '//*[@id="btnGerarOpcoes"]/i').click()
+navegador.find_element(By.XPATH, '//*[@id="frmRelatorio"]/div[2]/div/ul/li[1]/a').click()
 
-import os
-import time
-from os import listdir
+# --- Espera o arquivo baixar ---
 
-# Caminho da pasta Downloads (modifique conforme o sistema)
-downloads = r'C:\\Users\\T9\\Downloads'
-
-# Nome esperado do arquivo
+downloads = r'C:\Users\T9\Downloads'
 documento = 'RelatorioCobmais96.xlsx'
 
-# espearar o arquivo baixar
 while True:
     arquivos = listdir(downloads)
     if any(arquivo.startswith(documento) and not arquivo.endswith('.crdownload') for arquivo in arquivos):
         print(f'O arquivo {documento} foi baixado e está pronto para ser movido.')
         break
-
     else:
         print(f'⏳ Aguardando o download do arquivo {documento}...')
         time.sleep(2)
