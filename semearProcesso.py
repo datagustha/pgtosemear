@@ -22,7 +22,8 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 # brasil
-locale.setlocale(locale.LC_TIME,'Pt_BR.UTF8')
+locale.setlocale(locale.LC_TIME,'pt_BR.UTF-8')
+
 
 # Dicionário para os meses
 meses_dict = {
