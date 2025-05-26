@@ -13,14 +13,18 @@ jobs:
       - name: Clonar repositório
         uses: actions/checkout@v3
 
+      - name: Mostrar diretório e listar arquivos
+        run: |
+          pwd
+          ls -R
+
       - name: Instalar Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Instalar dependências
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Rodar script Python
         run: python semearProcesso.py
