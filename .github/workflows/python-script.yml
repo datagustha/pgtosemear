@@ -1,0 +1,26 @@
+name: Rodar semearProcesso.py todo dia
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # 7h da manhã no horário de Brasília (UTC+3)
+  workflow_dispatch:  # permite rodar manualmente também
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositório
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar dependências
+        run: |
+          pip install -r requirements.txt
+
+      - name: Rodar script Python
+        run: python semearProcesso.py
