@@ -2,8 +2,8 @@ name: Rodar semearProcesso.py todo dia
 
 on:
   schedule:
-    - cron: '0 10 * * *'  # 7h da manhã no horário de Brasília (UTC+3)
-  workflow_dispatch:  # permite rodar manualmente também
+    - cron: '0 10 * * *'  # 7h da manhã no horário de Brasília (UTC-3)
+  workflow_dispatch:
 
 jobs:
   run-script:
@@ -16,12 +16,17 @@ jobs:
       - name: Mostrar diretório e listar arquivos
         run: |
           pwd
-          ls -R
+          ls -la
 
       - name: Instalar Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
+      - name: Verificar versão do Python e pip
+        run: |
+          python --version
+          pip --version
 
       - name: Instalar dependências
         run: pip install -r requirements.txt
