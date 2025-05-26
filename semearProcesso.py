@@ -10,8 +10,9 @@ from os import listdir
 from os.path import exists
 
 
+from babel.dates import format_date
+from datetime import date
 
-locale.setlocale(locale.LC_TIME, 'pt_BR.UTF-8')  # Certifique-se de usar UTF-8
 
 
 from selenium import webdriver
